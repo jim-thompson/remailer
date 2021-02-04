@@ -1,0 +1,19 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Credentials file
+creds.py
+
+# Misc output files
+*.out
+
+# Emacs save files
+*~
+
+# macOS files
+.DS_Store
+
+# MagicDraw/Cameo backup files
+*.mdzip.bak
