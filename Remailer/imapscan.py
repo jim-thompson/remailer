@@ -4,24 +4,19 @@ Created on Jan 31, 2021
 @author: jct
 '''
 
-import re
-from imap import IMAPInterface
-from quopri import decodestring
-from email.parser import BytesParser
-from email.policy import default
-
 from creds import RemailerCreds
+from imap import IMAPInterface
 
-from tagscan import scan_for_tags
-from rfc5322 import email_regex_bytes
+from message import dumpHeaders
+from message import mutateHeaders
+from message import scanMessageForRemailTags
+from message import messageBytesAsObject
 
 incoming_folder = 'INBOX'
 exception_folder = 'INBOX.remailer-exception'
 sent_folder = 'INBOX.remailer-sent'
 original_folder = 'INBOX.remailer-original'
 notag_folder = 'INBOX.remailer-original-notag'
-
-email_prog = re.compile(email_regex_bytes)
 
 class Remailer:
     def __init__(self, connection):
@@ -79,94 +74,7 @@ class Remailer:
          
         typ, [response] = self._cxn.uid('store', message_uid, '+FLAGS', r'(\Deleted)')
         self.checkIMAPResponse(typ, response)
-    
-        typ, [response] = self._cxn.expunge()
-        self.checkIMAPResponse(typ, response)
- 
-        
-    def messagBytesAsObject(self, message_bytes):
-        # Parse the message string into a message object for easier
-        # handling. 
-        message_obj = BytesParser(policy=default).parsebytes(message_bytes)
-     
-        return message_obj
-    
-    def maybeQuotedPrintableToBytestring(self, bytes_):
-        if bytes_ is not None:
-            return decodestring(bytes_)
-        return ""
-    
-    def scanMessageForRemailTags(self, message_bytes):
-        
-        # This list will be used to return the found email addresses.
-        remail_addresses = []
-        
-        # Find all the tags in the message.
-        message_bytes, tags = scan_for_tags(message_bytes)
-        
-        for tag_tuple in tags:
             
-            # Break the tuple into tag and value
-            tag, value = tag_tuple
-            
-            # Because these might be quoted-printable encoded, decode into
-            # plain bytestrings
-            tag = self.maybeQuotedPrintableToBytestring(tag)
-            value = self.maybeQuotedPrintableToBytestring(value)
-            
-            # We're only interested in remail-to tags.
-            if tag == b'remail-to':
-                
-                # Test the value of the tag to see if it looks like an email
-                # address.
-                match = email_prog.match(value)
-                
-                if match is not None:
-                    
-                    # We have a remail-to tag with a valid email address. Now
-                    # we simply append the email address to the list of
-                    # remail addresses.
-                    remail_addresses.append(match.group(0))
-                    
-        return message_bytes, remail_addresses
-    
-    def dumpHeaders(self, message_obj):
-        print("-------------------------------------------------------------")
-        headers = message_obj.items()
-        
-        for (key, value) in headers:
-            print("key <%s>: value <%s>" % (key, value))
-            
-    def maybeSetHeader(self, message_obj, key, value):
-        if value is not None:
-            message_obj[key] = value
-        
-    def deleteAllHeaders(self, message_obj):
-        keys = message_obj.keys()
-         
-        for k in keys:
-            del message_obj[k]
-            
-    def mutateHeaders(self, message_obj):
-        
-        date = message_obj["Date"]
-        subject = message_obj["Subject"]
-        mime_version = message_obj["MIME-Version"]
-        content_type = message_obj["Content-Type"]
-        x_infapp = message_obj["X-InfApp"]
-        x_infcontact = message_obj["X-InfContact"]
-        x_campaignid = message_obj["X-campaignid"]
-
-        self.deleteAllHeaders(message_obj)
-        
-        self.maybeSetHeader(message_obj, "Date", date)
-        self.maybeSetHeader(message_obj, "Subject", subject)
-        self.maybeSetHeader(message_obj, "MIME-Version", mime_version)
-        self.maybeSetHeader(message_obj, "Content-Type", content_type)
-        self.maybeSetHeader(message_obj, "X-InfApp", x_infapp)
-        self.maybeSetHeader(message_obj, "X-InfContact", x_infcontact)
-        self.maybeSetHeader(message_obj, "X-campaignid", x_campaignid)
-        
     def doThemAll(self):
         
         message_uids = self.getAllFolderUIDs(incoming_folder)
@@ -180,7 +88,7 @@ class Remailer:
 #             print(message_bytes.decode('utf-8'))
             
             message_bytes, remail_addresses = \
-                self.scanMessageForRemailTags(message_bytes)
+                scanMessageForRemailTags(message_bytes)
                 
             if len(remail_addresses) > 0:
                 
@@ -193,10 +101,10 @@ class Remailer:
                 # the base message. The second part is to strip most of
                 # the original headers and add our new headers. That's
                 # easiest to do with a message object. Create one now.
-                message_obj = self.messagBytesAsObject(message_bytes)
+                message_obj = messageBytesAsObject(message_bytes)
                 
-                self.mutateHeaders(message_obj)
-                self.dumpHeaders(message_obj)
+                mutateHeaders(message_obj)
+                dumpHeaders(message_obj)
                 
                 # re-mail to the addresses
                 
@@ -262,5 +170,13 @@ if __name__ == '__main__':
  
          
     finally:   
+        # Finish up by doing some cleanup of the IMAP connection. These
+        # operations don't need to have their results checked because we
+        # don't much care if they succeed or fail.
+        
+        # Expunge any messages we deleted.
+        cxn.expunge()
+ 
+        # Close the context and log out.
         cxn.close()
         cxn.logout()
