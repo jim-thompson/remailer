@@ -7,13 +7,13 @@ import re
 from macros import macro_substitute
 
 #prog = re.compile("\${([a-zA-Z0-9-]+):([^}]+)}")
-prog = re.compile("\${(([a-zA-Z0-9-]+):)?([^}]*)}")
+prog = re.compile(b"\${(([a-zA-Z0-9-]+):)?([^}]*)}")
 
-def scan_for_tags(text):
+def scan_for_tags(bytes):
     found_tags = []
     
     # Find the first macro
-    match = prog.search(text)
+    match = prog.search(bytes)
 
     # Loop through every macro we find.
     while match is not None:
@@ -32,14 +32,14 @@ def scan_for_tags(text):
         # Record the tag tuple in the return list
         found_tags.append((tag_name, tag_value))
 
-        # Substitute the macro with an empty string
-        text = macro_substitute(text, match, "")
+        # Substitute the macro with an empty bytestring
+        bytes = macro_substitute(bytes, match, b"")
 
         # Find the next match
-        match = prog.search(text)
+        match = prog.search(bytes)
 
-    # Finally, return the macro-substituted text and list of tags.    
-    return text, found_tags
+    # Finally, return the macro-substituted bytes and list of tags.    
+    return bytes, found_tags
 
 if __name__ == '__main__':
     # Test code
