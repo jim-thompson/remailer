@@ -22,6 +22,10 @@ def messageBytesAsObject(message_bytes):
  
     return message_obj
 
+def showMessageSubject(message_bytes):
+    message_obj = messageBytesAsObject(message_bytes)
+    print("Subject:", message_obj["Subject"])
+
 def maybeQuotedPrintableToBytestring(bytes_):
     if bytes_ is not None:
         return decodestring(bytes_)
