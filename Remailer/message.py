@@ -10,10 +10,10 @@ from quopri import decodestring
 from email.parser import BytesParser
 from email.policy import default
 
-from rfc5322 import email_regex_bytes
+from rfc5322 import email_regex_str
 from tagscan import scan_for_tags
 
-email_prog = re.compile(email_regex_bytes)
+email_prog = re.compile(email_regex_str)
 
 def messageBytesAsObject(message_bytes):
     # Parse the message string into a message object for easier
@@ -31,13 +31,13 @@ def maybeQuotedPrintableToBytestring(bytes_):
         return decodestring(bytes_)
     return ""
 
-def scanMessageForRemailTags(message_bytes):
+def scanPartForRemailTags(message_str):
     
     # This list will be used to return the found email addresses.
-    remail_addresses = []
+    remail_addresses_set = set()
     
     # Find all the tags in the message.
-    message_bytes, tags = scan_for_tags(message_bytes)
+    message_str, tags = scan_for_tags(message_str)
     
     for tag_tuple in tags:
         
@@ -46,11 +46,11 @@ def scanMessageForRemailTags(message_bytes):
         
         # Because these might be quoted-printable encoded, decode into
         # plain bytestrings
-        tag = maybeQuotedPrintableToBytestring(tag)
-        value = maybeQuotedPrintableToBytestring(value)
+#         tag = maybeQuotedPrintableToBytestring(tag)
+#         value = maybeQuotedPrintableToBytestring(value)
         
         # We're only interested in remail-to tags.
-        if tag == b'remail-to':
+        if tag == 'remail-to':
             
             # Test the value of the tag to see if it looks like an email
             # address.
@@ -61,9 +61,9 @@ def scanMessageForRemailTags(message_bytes):
                 # We have a remail-to tag with a valid email address. Now
                 # we simply append the email address to the list of
                 # remail addresses.
-                remail_addresses.append(match.group(0))
+                remail_addresses_set.add(match.group(0))
                 
-    return message_bytes, remail_addresses
+    return message_str, remail_addresses_set
 
 def dumpHeaders(message_obj):
     print("-------------------------------------------------------------")

@@ -6,8 +6,7 @@ Created on Feb 2, 2021
 import re
 from macros import macro_substitute
 
-#prog = re.compile("\${([a-zA-Z0-9-]+):([^}]+)}")
-prog = re.compile(b"\${(([a-zA-Z0-9-]+):)?([^}]*)}")
+prog = re.compile("\${(([a-zA-Z0-9-]+):)?([^}]*)}")
 
 def scan_for_tags(bytes_):
     found_tags = []
@@ -27,13 +26,13 @@ def scan_for_tags(bytes_):
         
         # Make a tuple for the tag, because it's easier to append 
         # to the return list.
-#         tag_tuple = (tag_name, tag_group)
+        tag_tuple = (tag_name, tag_value)
         
         # Record the tag tuple in the return list
-        found_tags.append((tag_name, tag_value))
+        found_tags.append(tag_tuple)
 
         # Substitute the macro with an empty bytestring
-        bytes_ = macro_substitute(bytes_, match, b"")
+        bytes_ = macro_substitute(bytes_, match, "")
 
         # Find the next match
         match = prog.search(bytes_)

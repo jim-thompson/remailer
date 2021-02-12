@@ -1,0 +1,80 @@
+'''
+Created on Feb 3, 2021
+
+@author: jct
+'''
+
+# The regular expression below will recognize most valid email address.
+# Source: https://emailregex.com
+infusionlink_url_mappings = {
+    "https://ei194.infusion-links.com/api/v1/click/5264673617870848/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=2728143454&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/4907891087245312/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=1133451717&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/6069206447161344/5769926146654208":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/6460022969729024/5769926146654208":
+       "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-online-course/?inf_contact_key=98de29393099ba253502e73ddce097f5680f8914173f9191b1c0223e68310bb1",
+    "https://ei194.infusion-links.com/api/v1/click/5324874698063872/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/6478208037421056/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=1133451717&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/5945480493793280/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/6001950790909952/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=1133451717&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/6679592410152960/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5874223026929664/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5874223026929664/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5882849712013312/4667400008105984":
+        "https://delligattiassociates.com/wp-content/uploads/2020/10/SysML-Distilled-Sample-Chapter-Chapter-3-BDDs.pdf",
+    "https://ei194.infusion-links.com/api/v1/click/6407850970185728/4667400008105984":
+        "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-course-q-and-a-blog/",
+    "https://ei194.infusion-links.com/api/v1/click/5954924522897408/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/4572125039558656/4667400008105984":
+       "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-online-course/?inf_contact_key=07aa17d8c1ba3fd393e5e4c4f63f1522680f8914173f9191b1c0223e68310bb1",
+    "https://ei194.infusion-links.com/api/v1/click/6378624657260544/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/4892646369263616/4667400008105984":
+        "https://delligattiassociates.com/wp-content/uploads/2020/10/SysML-Distilled-Sample-Chapter-Chapter-3-BDDs.pdf",
+    "https://ei194.infusion-links.com/api/v1/click/4804745837019136/4667400008105984":
+        "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-course-q-and-a-blog/",
+    "https://ei194.infusion-links.com/api/v1/click/6487539524960256/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/6664256491225088/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=2728143454&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/6519352884592640/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5835079030538240/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=2728143454&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/5612817400594432/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/4540515422437376/4667400008105984":
+       "https://events-na11.adobeconnect.com/content/connect/c1/1110747084/en/events/event/shared/default_template/event_landing.html?sco-id=2728143454&_charset_=utf-8",
+    "https://ei194.infusion-links.com/api/v1/click/5835016124366848/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/6229552919085056/4667400008105984":
+       "https://delligattiassociates.com/oosem-accelerator-mbse-methodology-training-course/?inf_contact_key=ace8e6e09b7bb124778c33304c72e8ec680f8914173f9191b1c0223e68310bb1#links",
+    "https://ei194.infusion-links.com/api/v1/click/6429829525798912/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/4978234573324288/4667400008105984":
+       "http://www.delligattiassociates.com/wp-content/uploads/2020/10/SysML-Distilled-Sample-Chapter-Chapter-3-BDDs.pdf",
+    "https://ei194.infusion-links.com/api/v1/click/4540694468886528/4667400008105984":
+       "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-course-q-and-a-blog/?inf_contact_key=2192564b71cd7f63f2ca8da6d36ee857680f8914173f9191b1c0223e68310bb1",
+    "https://ei194.infusion-links.com/api/v1/click/6402426694926336/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5679374294188032/4667400008105984":
+        "https://delligattiassociates.com/oosem-accelerator-mbse-methodology-training-course/",
+    "https://ei194.infusion-links.com/api/v1/click/4949259541151744/4667400008105984":
+       "https://delligattiassociates.com/",
+    "https://ei194.infusion-links.com/api/v1/click/5838305264009216/4667400008105984":
+        "https://delligattiassociates.com/wp-content/uploads/2020/10/SysML-Distilled-Sample-Chapter-Chapter-3-BDDs.pdf",
+    "https://ei194.infusion-links.com/api/v1/click/5018586755760128/4667400008105984":
+        "https://delligattiassociates.com/2020/06/30/ocsmp-accelerator-sysml-training-course-q-and-a-blog/",
+    "https://ei194.infusion-links.com/api/v1/click/5853007742369792/5769926146654208":
+       "https://delligattiassociates.com/",
+    }    
