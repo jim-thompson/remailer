@@ -22,7 +22,8 @@ from message import messageBytesAsObject
 from message import showMessageSubject
 
 from macros import macro_substitute
-from url_mappings import infusionlink_url_mappings
+# from url_mappings import infusionlink_url_mappings
+from url_redirect import get_redirect_for
 
 incoming_folder = 'INBOX'
 exception_folder = 'INBOX/remailer-exception'
@@ -124,7 +125,8 @@ class Remailer:
         
         while match is not None:
             matched_url = match.group(0)
-            print("Found infusionlinks url <%s>" % matched_url)
+            print()
+            print("  Found infusionlinks url <%s>" % matched_url)
             
             # This will throw an exception if the matched URL has no mapping.
             # That's OK because it's an unrecoverable error. We know we cannot
@@ -133,9 +135,11 @@ class Remailer:
             # But if we don't know what its mapping is, then we would have
             # to send a malformed message. We cannot do that either, so this
             # is truly an exceptional situation. Let the exception fly!
-            mapped_url = infusionlink_url_mappings[matched_url]
-            
-            print("Found url mapping <%s>" % mapped_url)
+#             mapped_url = infusionlink_url_mappings[matched_url]
+#             
+#             print("Found url mapping <%s>" % mapped_url)
+
+            mapped_url = get_redirect_for(matched_url)
             
             message_part_str = macro_substitute(message_part_str, match, mapped_url)
         
@@ -154,7 +158,8 @@ class Remailer:
         
         while match is not None:
             matched_url = match.group(0)
-            print("Found tracking pixel url <%s>" % matched_url)
+            print()
+            print("  Found tracking pixel url <%s>" % matched_url)
             
             # Delete the URL.
             message_part_str = macro_substitute(message_part_str, match, "")
@@ -174,9 +179,9 @@ class Remailer:
             
             # Spit out some diagnostic messages.
             print()
-            print("Content-Type:", part.get_content_type())
-            print("Content-Charset:", part.get_content_charset())
-            print("Content-Disposition:", part.get_content_disposition())
+            print("  Content-Type:", part.get_content_type())
+            print("  Content-Charset:", part.get_content_charset())
+            print("  Content-Disposition:", part.get_content_disposition())
             
             # Multipart parts are basically containers, so we don't process
             # them. But we process all others.
@@ -190,8 +195,8 @@ class Remailer:
                 message_part_str = part.get_content()
                 
                 # More diagnostic: print the entire message_part_str
-                print("-----------------------------------")
-                print(message_part_str)
+#                 print("-----------------------------------")
+#                 print(message_part_str)
                 
                 # Now some real processing...
                 
@@ -216,8 +221,8 @@ class Remailer:
                 if maybe_modified_content_str != message_part_str:
                     
                     # A little more diagnostic output.
-                    print("===================================")
-                    print(maybe_modified_content_str)
+#                     print("===================================")
+#                     print(maybe_modified_content_str)
                     
                     part.set_content(message_part_str)
 
@@ -235,59 +240,64 @@ class Remailer:
         
         # Loop through all the messages in the inbox.
         for message_uid in message_uids:
+            
+            # Wrap this processing in a try block so
+            # that if a message fails we may still be
+            # able to process others.
+            try:
                         
-            message_bytes = self.fetchMessageUIDAsBytes(message_uid)
-
-            # Emit some messages to show progress.
-            print()
-            print("Message %s" % self.msgId(message_uid))
-            showMessageSubject(message_bytes)
-            
-            #self.showMessageURLs(message_bytes)
-            
-#             message_bytes, remail_addresses_set = \
-#                 scanMessageForRemailTags(message_bytes)
+                message_bytes = self.fetchMessageUIDAsBytes(message_uid)
+    
+                # Emit some messages to show progress.
+                print()
+                print("Message %s" % self.msgId(message_uid))
+                showMessageSubject(message_bytes)
                 
-
-            message_obj = messageBytesAsObject(message_bytes)
-            remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
-                
-            if len(remail_addresses_set) > 0:
-                
-                # We found at least one valid remail-to tag, so the original
-                # message should be move to the originals folder.
-                #self.moveMessageUID(message_uid, original_folder)
-                
-                # The message in message_bytes has already had its body
-                # modified (remail-to tags removed, infusionlinks URLs
-                # replaced, tracking pixel URLs deleted). Now we modify
-                # the headers to make the message look like a brand new
-                # message, not something that's been bounced around the
-                # Internet already.
-                mutateHeaders(message_obj)
-                
-                # Construct a single To: header with all of the email
-                # addresses in it.
-                to_header_str = ', '.join(remail_addresses_set)
-                message_obj.add_header("To", to_header_str)
-                
-                print("Base message headers:")
-                dumpHeaders(message_obj)
-                
-                # message_obj now contains the base message, which we
-                # send to each of the recipients in turn.
-                
-                for recipient_address in remail_addresses_set:
-                    print("Remailing to <%s>" % recipient_address)
+    #             message_bytes, remail_addresses_set = \
+    #                 scanMessageForRemailTags(message_bytes)
                     
-            
-            else:
-                # No addresses to remail to - move the original message to the
-                # original-notag folder
-#                 self.moveMessageUID(message_uid, notag_folder)
+    
+                message_obj = messageBytesAsObject(message_bytes)
+                remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
+                    
+                if len(remail_addresses_set) > 0:
+                    
+                    # We found at least one valid remail-to tag, so the original
+                    # message should be move to the originals folder.
+                    #self.moveMessageUID(message_uid, original_folder)
+                    
+                    # The message in message_bytes has already had its body
+                    # modified (remail-to tags removed, infusionlinks URLs
+                    # replaced, tracking pixel URLs deleted). Now we modify
+                    # the headers to make the message look like a brand new
+                    # message, not something that's been bounced around the
+                    # Internet already.
+                    mutateHeaders(message_obj)
+                    
+                    # Construct a single To: header with all of the email
+                    # addresses in it.
+                    to_header_str = ', '.join(remail_addresses_set)
+                    message_obj.add_header("To", to_header_str)
+                    
+                    print("Base message headers:")
+                    dumpHeaders(message_obj)
+                    
+                    # message_obj now contains the base message, which we
+                    # send to each of the recipients in turn.
+                    
+                    for recipient_address in remail_addresses_set:
+                        print("Remailing to <%s>" % recipient_address)
+                        
                 
-                # print("%s" % message_obj['Subject'])
-                pass
+                else:
+                    # No addresses to remail to - move the original message to the
+                    # original-notag folder
+    #                 self.moveMessageUID(message_uid, notag_folder)
+                    
+                    # print("%s" % message_obj['Subject'])
+                    pass
+            except:
+                print("*** Error processing message - skipping.")
 
 if __name__ == '__main__':
     # Set up the IMAP server connection
