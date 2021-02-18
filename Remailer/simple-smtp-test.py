@@ -8,11 +8,16 @@ servers.
 '''
 import time
 import smtplib
+from centraltime import centraltime_str
 from creds import SMTPCreds
 
-# recipient_list = [ "jthompson@delligattiassociates.com", "jtoftx@gmail.com", "jim.thompson@pobox.com"]
-# recipient_list = [ "earljllama@protonmail.com" ]
-recipient_list = [ "Scott.Schmidt@L3Harris.com",
+# recipient_list = [ "jthompson@delligattiassociates.com",
+#                   "Jim Thompson Gmail <jtoftx@gmail.com>",
+#                   "Jim Thompson Pobox <jim.thompson@pobox.com>",
+#                   "Earl J Llama <earljllama@protonmail.com>" ]
+
+recipient_list = [ "jthompson@delligattiassociates.com",
+                   "Scott.Schmidt@L3Harris.com",
                    "Sherrie.Hughes@leidos.com>",
                    "Rachel.Gaines@ManTech.com>",
                    "lapierre_michael@bah.com>",
@@ -26,21 +31,20 @@ if __name__ == '__main__':
     
     fromaddr = "jthompson@delligattiassociates.com"
     
-    base_msg = """To: %s
-Subject: Remailer connectivity test
+    base_msg = """Return-Path: <jthompson@delligattiassociates.com>
+X-DA-Remailer: v0.0.2
+To: %s
+Date: %s
+Subject: Second remailer test
 From: Jim Thompson <jthompson@delligattiassociates.com>
 
-This is a connectivity test of the Delligatti Associates remailer.
-The purpose of this test is to determine whether we can send email
-from a python script and successfully receive the email at clients
-that typically block our automated emails.
-
-If you receive this email, please forward it back to me. Thank you! 
+Hello. If you receive this message, please forward a copy to me. If you found it in your spam or junk folder, please note "Spam". Thanks!
 
 Best,
 JT
 """
-    
+#User-Agent: Delligatti Associates Remailer 0.0.1
+
     print("Using SMTP user = <%s>, password = <%s>" % (creds.username, creds.password))
     
 #     print("Message length is", len(msg))
@@ -57,10 +61,11 @@ JT
     server.login(creds.username, creds.password)
     
     for recipient in recipient_list:
-        msg = base_msg % recipient
+        date = centraltime_str()
+        msg = base_msg % (recipient, date)
         print("----> message follows:")
         print(msg)
-        print("----> sendmail to <%s>" % recipient)
+        print("----> sendmail to %s" % recipient)
         server.sendmail(fromaddr, recipient, msg)
     
     print("---> quit")
