@@ -16,15 +16,20 @@ from creds import SMTPCreds
 #                   "Jim Thompson Pobox <jim.thompson@pobox.com>",
 #                   "Earl J Llama <earljllama@protonmail.com>" ]
 
-recipient_list = [ "jthompson@delligattiassociates.com",
-                   "Scott.Schmidt@L3Harris.com",
-                   "Sherrie.Hughes@leidos.com>",
-                   "Rachel.Gaines@ManTech.com>",
-                   "lapierre_michael@bah.com>",
-                   "leslie.thomas@navy.mil",
-                   "erin.m.bootle@navy.mil",
-                   "john.e.wilson@navy.mil",
-                   "abeachy@learnspectrum.com" ]
+recipient_list = [ "jthompson@delligattiassociates.com", "jim.thompson@pobox.com" ]
+
+# recipient_list = [ "jthompson@delligattiassociates.com" ]
+
+
+# recipient_list = [ "jthompson@delligattiassociates.com",
+#                    "Scott.Schmidt@L3Harris.com",
+#                    "Sherrie.Hughes@leidos.com>",
+#                    "Rachel.Gaines@ManTech.com>",
+#                    "lapierre_michael@bah.com>",
+#                    "leslie.thomas@navy.mil",
+#                    "erin.m.bootle@navy.mil",
+#                    "john.e.wilson@navy.mil",
+#                    "abeachy@learnspectrum.com" ]
 
 if __name__ == '__main__':
     creds = SMTPCreds()
@@ -32,7 +37,7 @@ if __name__ == '__main__':
     fromaddr = "jthompson@delligattiassociates.com"
     
     base_msg = """Return-Path: <jthompson@delligattiassociates.com>
-X-DA-Remailer: v0.0.2
+X-DA-Remailer: v0.0.3
 To: %s
 Date: %s
 Subject: Second remailer test
@@ -43,7 +48,6 @@ Hello. If you receive this message, please forward a copy to me. If you found it
 Best,
 JT
 """
-#User-Agent: Delligatti Associates Remailer 0.0.1
 
     print("Using SMTP user = <%s>, password = <%s>" % (creds.username, creds.password))
     
