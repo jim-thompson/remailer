@@ -4,6 +4,7 @@ Created on Jan 31, 2021
 @author: jct
 '''
 
+import sys
 import re
 from quopri import decodestring
 
@@ -15,6 +16,8 @@ from macros import macro_substitute
 from imap import IMAPInterface
 from smtp import SMTPInterface
  
+from centraltime import centraltime_str
+
 from message import dumpHeaders
 from message import mutateHeaders
 from message import scanPartForRemailTags
@@ -30,6 +33,8 @@ exception_folder = 'INBOX/remailer-exception'
 sent_folder = 'INBOX/remailer-sent'
 original_folder = 'INBOX/remailer-original'
 notag_folder = 'INBOX/remailer-original-notag'
+
+global_from_addr = 'da@delligattiassociates.com'
 
 class Remailer:
     def __init__(self, imap_connection, smtp_service):
@@ -231,6 +236,9 @@ class Remailer:
         # and the caller's reference will retain any changes
         # we've made here.)
         return remail_addresses_set
+    
+    from email.policy import default
+    MHTMLPolicy = default.clone(linesep='\r\n', max_line_length=0)
  
     def doThemAll(self):
         
@@ -244,7 +252,7 @@ class Remailer:
             # Wrap this processing in a try block so
             # that if a message fails we may still be
             # able to process others.
-            try:
+#             try:
                         
                 message_bytes = self.fetchMessageUIDAsBytes(message_uid)
     
@@ -252,19 +260,75 @@ class Remailer:
                 print()
                 print("Message %s" % self.msgId(message_uid))
                 showMessageSubject(message_bytes)
+                                
+                print(message_bytes)
                 
-    #             message_bytes, remail_addresses_set = \
-    #                 scanMessageForRemailTags(message_bytes)
-                    
-    
                 message_obj = messageBytesAsObject(message_bytes)
+                
+                print("-----------------------------------------------------------------")
+                for part in message_obj.walk():
+            
+                    content_type = part.get_content_type()
+                    content_charset = part.get_content_charset()
+                    content_disposition = part.get_content_disposition()
+                    
+                    # Spit out some diagnostic messages.
+                    print()
+                    print("  Content-Type:", content_type)
+                    print("  Content-Charset:", content_charset)
+                    print("  Content-Disposition:", content_disposition)
+                    
+                    if content_type == 'text/html':
+                        content_type = 'html'
+                    elif content_type == 'text/plain':
+                        content_type = 'plain'
+                    
+                    # Multipart parts are basically containers, so we don't process
+                    # them. But we process all others.
+                    if not part.is_multipart():
+                        message_part_str = part.get_content()
+                        part.set_content(message_part_str, subtype = content_type,
+                                         charset = content_charset,
+                                         disposition = content_disposition)
+                            
+                print("-----------------------------------------------------------------")
+                # Now let's loop through the message parts again
+                for part in message_obj.walk():
+            
+                    # Spit out some diagnostic messages.
+                    print()
+                    print("  Content-Type:", part.get_content_type())
+                    print("  Content-Charset:", part.get_content_charset())
+                    print("  Content-Disposition:", part.get_content_disposition())
+
+                print("-----------------------------------------------------------------")
+                mutateHeaders(message_obj, global_from_addr)
+                
+                date_str = centraltime_str()
+ 
+                del message_obj["To"]  
+                message_obj["To"] = "earljllama@protonmail.com"
+                del message_obj["Date"]
+                message_obj["Date"] = date_str
+                del message_obj["Subject"]
+                message_obj["Subject"] = "Test on <" + date_str + ">"
+                
+                new_message_bytes = message_obj.as_bytes(policy = self.MHTMLPolicy)
+                print(new_message_bytes)
+                
+                self._smtp_service.sendmail(global_from_addr, "earljllama@protonmail.com", new_message_bytes)
+                
+                print("*** Done ***")
+                continue
+                
+                
                 remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
                     
                 if len(remail_addresses_set) > 0:
                     
                     # We found at least one valid remail-to tag, so the original
                     # message should be move to the originals folder.
-                    #self.moveMessageUID(message_uid, original_folder)
+                    self.moveMessageUID(message_uid, original_folder)
                     
                     # The message in message_bytes has already had its body
                     # modified (remail-to tags removed, infusionlinks URLs
@@ -272,7 +336,7 @@ class Remailer:
                     # the headers to make the message look like a brand new
                     # message, not something that's been bounced around the
                     # Internet already.
-                    mutateHeaders(message_obj)
+                    mutateHeaders(message_obj, global_from_addr)
                     
                     # Construct a single To: header with all of the email
                     # addresses in it.
@@ -287,17 +351,19 @@ class Remailer:
                     
                     for recipient_address in remail_addresses_set:
                         print("Remailing to <%s>" % recipient_address)
-                        
+                        self._smtp_service.send_message(global_from_addr,
+                                                        recipient_address,
+                                                        message_obj)
                 
                 else:
                     # No addresses to remail to - move the original message to the
                     # original-notag folder
-    #                 self.moveMessageUID(message_uid, notag_folder)
+                    self.moveMessageUID(message_uid, notag_folder)
                     
                     # print("%s" % message_obj['Subject'])
                     pass
-            except:
-                print("*** Error processing message - skipping.")
+#             except:
+#                 print("*** Error processing message - skipping.")
 
 if __name__ == '__main__':
     # Set up the IMAP server connection

@@ -11,6 +11,7 @@ from email.parser import BytesParser
 from email.policy import default
 
 from rfc5322 import email_regex_str
+from centraltime import centraltime_str
 from tagscan import scan_for_tags
 
 email_prog = re.compile(email_regex_str)
@@ -82,9 +83,10 @@ def deleteAllHeaders(message_obj):
     for k in keys:
         del message_obj[k]
         
-def mutateHeaders(message_obj):
+def mutateHeaders(message_obj, from_str):
     
-    date = message_obj["Date"]
+#     date = message_obj["Date"]
+    date = centraltime_str()
     subject = message_obj["Subject"]
     mime_version = message_obj["MIME-Version"]
     content_type = message_obj["Content-Type"]
@@ -101,4 +103,6 @@ def mutateHeaders(message_obj):
     maybeSetHeader(message_obj, "X-InfApp", x_infapp)
     maybeSetHeader(message_obj, "X-InfContact", x_infcontact)
     maybeSetHeader(message_obj, "X-campaignid", x_campaignid)
+    
+    message_obj["From"] = from_str
         
