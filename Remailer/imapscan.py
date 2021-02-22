@@ -5,6 +5,8 @@ Created on Jan 31, 2021
 '''
 
 import sys
+import traceback
+
 import re
 from quopri import decodestring
 
@@ -130,20 +132,9 @@ class Remailer:
         
         while match is not None:
             matched_url = match.group(0)
-            print()
-            print("  Found infusionlinks url <%s>" % matched_url)
+            # print()
+            # print("  Found infusionlinks url <%s>" % matched_url)
             
-            # This will throw an exception if the matched URL has no mapping.
-            # That's OK because it's an unrecoverable error. We know we cannot
-            # allow an infusionlinks URL to be sent to a user because it is
-            # likely to be either flagged as spam or to be blocked outright.
-            # But if we don't know what its mapping is, then we would have
-            # to send a malformed message. We cannot do that either, so this
-            # is truly an exceptional situation. Let the exception fly!
-#             mapped_url = infusionlink_url_mappings[matched_url]
-#             
-#             print("Found url mapping <%s>" % mapped_url)
-
             mapped_url = get_redirect_for(matched_url)
             
             message_part_str = macro_substitute(message_part_str, match, mapped_url)
@@ -163,8 +154,8 @@ class Remailer:
         
         while match is not None:
             matched_url = match.group(0)
-            print()
-            print("  Found tracking pixel url <%s>" % matched_url)
+            # print()
+            # print("  Found tracking pixel url <%s>" % matched_url)
             
             # Delete the URL.
             message_part_str = macro_substitute(message_part_str, match, "")
@@ -174,6 +165,16 @@ class Remailer:
             
         return message_part_str
     
+    mime_pattern = "([a-z]+)/([a-z]+)"
+    mime_prog = re.compile(mime_pattern)
+    
+    def typeAndSubtype(self, mime_type_str):
+        match = self.mime_prog.match(mime_type_str)
+        if match is not None:
+            main_type = match.group(1)
+            sub_type = match.group(2)
+            return main_type, sub_type
+        return "", mim_type_str
     
     def performSubstitutionOnMessageParts(self, obj):
         
@@ -182,15 +183,21 @@ class Remailer:
         # Loop over all the message parts.
         for part in obj.walk():
             
+            content_type = part.get_content_type()
+            content_charset = part.get_content_charset()
+            content_disposition = part.get_content_disposition()
+            
             # Spit out some diagnostic messages.
-            print()
-            print("  Content-Type:", part.get_content_type())
-            print("  Content-Charset:", part.get_content_charset())
-            print("  Content-Disposition:", part.get_content_disposition())
+            # print()
+            # print("  Content-Type:", content_type)
+            # print("  Content-Charset:", content_charset)
+            # print("  Content-Disposition:", content_disposition)
             
             # Multipart parts are basically containers, so we don't process
             # them. But we process all others.
             if not part.is_multipart():
+                main_type, sub_type = self.typeAndSubtype(content_type)
+                # print("main_type = <%s>, sub_type = <%s>" % (main_type, sub_type))
                 
                 # Get the message_part_str of this part of the message.
                 # If this part of the message was encoded in (possibly)
@@ -198,10 +205,6 @@ class Remailer:
                 # in (proabably) UTF-8 unicode. (Which is good, because
                 # it's easier to deal with in this form.)
                 message_part_str = part.get_content()
-                
-                # More diagnostic: print the entire message_part_str
-#                 print("-----------------------------------")
-#                 print(message_part_str)
                 
                 # Now some real processing...
                 
@@ -215,21 +218,19 @@ class Remailer:
                 
                 # Now perform mapping of any infusion-link URLs to their
                 # direct link conterparts.
-                message_part_str = self.remapURLs(message_part_str)
+                maybe_modified_content_str = self.remapURLs(maybe_modified_content_str)
                 
                 # Finally, nuke any tracking pixel URLs
-                message_part_str = self.suppressTrackingPixels(message_part_str)
+                maybe_modified_content_str = self.suppressTrackingPixels(maybe_modified_content_str)
 
                 # If any of these steps have modified the content of this
                 # part of the message, then replace that part of the
                 # message object.                
                 if maybe_modified_content_str != message_part_str:
                     
-                    # A little more diagnostic output.
-#                     print("===================================")
-#                     print(maybe_modified_content_str)
-                    
-                    part.set_content(message_part_str)
+                    part.set_content(maybe_modified_content_str, subtype = sub_type,
+                                        charset = content_charset,
+                                        disposition = content_disposition)
 
         # Return any remail-to addresses we found. (It's not
         # to return the message object. It's passed by reference,
@@ -252,7 +253,7 @@ class Remailer:
             # Wrap this processing in a try block so
             # that if a message fails we may still be
             # able to process others.
-#             try:
+            try:
                         
                 message_bytes = self.fetchMessageUIDAsBytes(message_uid)
     
@@ -261,66 +262,7 @@ class Remailer:
                 print("Message %s" % self.msgId(message_uid))
                 showMessageSubject(message_bytes)
                                 
-                print(message_bytes)
-                
                 message_obj = messageBytesAsObject(message_bytes)
-                
-                print("-----------------------------------------------------------------")
-                for part in message_obj.walk():
-            
-                    content_type = part.get_content_type()
-                    content_charset = part.get_content_charset()
-                    content_disposition = part.get_content_disposition()
-                    
-                    # Spit out some diagnostic messages.
-                    print()
-                    print("  Content-Type:", content_type)
-                    print("  Content-Charset:", content_charset)
-                    print("  Content-Disposition:", content_disposition)
-                    
-                    if content_type == 'text/html':
-                        content_type = 'html'
-                    elif content_type == 'text/plain':
-                        content_type = 'plain'
-                    
-                    # Multipart parts are basically containers, so we don't process
-                    # them. But we process all others.
-                    if not part.is_multipart():
-                        message_part_str = part.get_content()
-                        part.set_content(message_part_str, subtype = content_type,
-                                         charset = content_charset,
-                                         disposition = content_disposition)
-                            
-                print("-----------------------------------------------------------------")
-                # Now let's loop through the message parts again
-                for part in message_obj.walk():
-            
-                    # Spit out some diagnostic messages.
-                    print()
-                    print("  Content-Type:", part.get_content_type())
-                    print("  Content-Charset:", part.get_content_charset())
-                    print("  Content-Disposition:", part.get_content_disposition())
-
-                print("-----------------------------------------------------------------")
-                mutateHeaders(message_obj, global_from_addr)
-                
-                date_str = centraltime_str()
- 
-                del message_obj["To"]  
-                message_obj["To"] = "earljllama@protonmail.com"
-                del message_obj["Date"]
-                message_obj["Date"] = date_str
-                del message_obj["Subject"]
-                message_obj["Subject"] = "Test on <" + date_str + ">"
-                
-                new_message_bytes = message_obj.as_bytes(policy = self.MHTMLPolicy)
-                print(new_message_bytes)
-                
-                self._smtp_service.sendmail(global_from_addr, "earljllama@protonmail.com", new_message_bytes)
-                
-                print("*** Done ***")
-                continue
-                
                 
                 remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
                     
@@ -362,8 +304,9 @@ class Remailer:
                     
                     # print("%s" % message_obj['Subject'])
                     pass
-#             except:
-#                 print("*** Error processing message - skipping.")
+            except Exception as e:
+                traceback.print_tb(e.__traceback__)
+                print("*** Error processing message - skipping.")
 
 if __name__ == '__main__':
     # Set up the IMAP server connection

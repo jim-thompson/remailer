@@ -10,16 +10,14 @@ from quopri import decodestring
 from email.parser import BytesParser
 from email.policy import default
 
-from rfc5322 import email_regex_str
+from rfc5322 import email_prog
 from centraltime import centraltime_str
 from tagscan import scan_for_tags
-
-email_prog = re.compile(email_regex_str)
 
 def messageBytesAsObject(message_bytes):
     # Parse the message string into a message object for easier
     # handling. 
-    message_obj = BytesParser(policy=default).parsebytes(message_bytes)
+    message_obj = BytesParser(policy = default).parsebytes(message_bytes)
  
     return message_obj
 
@@ -67,11 +65,11 @@ def scanPartForRemailTags(message_str):
     return message_str, remail_addresses_set
 
 def dumpHeaders(message_obj):
-    print("-------------------------------------------------------------")
+    print("  -------------------------------------------------------------")
     headers = message_obj.items()
     
     for (key, value) in headers:
-        print("%s: %s" % (key, value))
+        print("  %s: %s" % (key, value))
         
 def maybeSetHeader(message_obj, key, value):
     if value is not None:
