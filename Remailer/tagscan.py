@@ -8,11 +8,11 @@ from macros import macro_substitute
 
 prog = re.compile("\${(([a-zA-Z0-9-]+):)?([^}]*)}")
 
-def scan_for_tags(bytes_):
+def scan_for_tags(str_):
     found_tags = []
     
     # Find the first macro
-    match = prog.search(bytes_)
+    match = prog.search(str_)
 
     # Loop through every macro we find.
     while match is not None:
@@ -32,13 +32,13 @@ def scan_for_tags(bytes_):
         found_tags.append(tag_tuple)
 
         # Substitute the macro with an empty bytestring
-        bytes_ = macro_substitute(bytes_, match, "")
+        str_ = macro_substitute(str_, match, "")
 
         # Find the next match
-        match = prog.search(bytes_)
+        match = prog.search(str_)
 
-    # Finally, return the macro-substituted bytes_ and list of tags.    
-    return bytes_, found_tags
+    # Finally, return the macro-substituted str_ and list of tags.    
+    return str_, found_tags
 
 if __name__ == '__main__':
     # Test code

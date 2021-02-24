@@ -22,6 +22,7 @@ from centraltime import centraltime_str
 
 from message import dumpHeaders
 from message import mutateHeaders
+from message import scanPartForTruncateTags
 from message import scanPartForRemailTags
 from message import messageBytesAsObject
 from message import showMessageSubject
@@ -176,6 +177,8 @@ class Remailer:
             return main_type, sub_type
         return "", mim_type_str
     
+    delete_html_parts = True
+    
     def performSubstitutionOnMessageParts(self, obj):
         
         remail_addresses_set = set()
@@ -197,6 +200,17 @@ class Remailer:
             # them. But we process all others.
             if not part.is_multipart():
                 main_type, sub_type = self.typeAndSubtype(content_type)
+                
+                # Optional configuration: just delete all HTML parts because
+                # something in them is causing emails to get filed as SPAM.
+                if self.delete_html_parts and sub_type == "html":
+                    pl = obj.get_payload()
+                    pl.remove(part)
+                    
+                    # This part has been deleted - no further processing
+                    # needed for this part.
+                    continue
+                    
                 # print("main_type = <%s>, sub_type = <%s>" % (main_type, sub_type))
                 
                 # Get the message_part_str of this part of the message.
@@ -208,20 +222,22 @@ class Remailer:
                 
                 # Now some real processing...
                 
+                maybe_modified_content_str = scanPartForTruncateTags(message_part_str)
+                
                 # Scan the part for remail-to: tags, replace them,
                 # and accumulate the recipient addresses.
                 maybe_modified_content_str, more_remail_addresses_set = \
-                    scanPartForRemailTags(message_part_str)
+                    scanPartForRemailTags(maybe_modified_content_str)
                     
                 # Get the union of the two sets.
                 remail_addresses_set |= more_remail_addresses_set
                 
-                # Now perform mapping of any infusion-link URLs to their
-                # direct link conterparts.
-                maybe_modified_content_str = self.remapURLs(maybe_modified_content_str)
-                
-                # Finally, nuke any tracking pixel URLs
-                maybe_modified_content_str = self.suppressTrackingPixels(maybe_modified_content_str)
+                # # Now perform mapping of any infusion-link URLs to their
+                # # direct link conterparts.
+                # maybe_modified_content_str = self.remapURLs(maybe_modified_content_str)
+                #
+                # # Finally, nuke any tracking pixel URLs
+                # maybe_modified_content_str = self.suppressTrackingPixels(maybe_modified_content_str)
 
                 # If any of these steps have modified the content of this
                 # part of the message, then replace that part of the
@@ -253,7 +269,7 @@ class Remailer:
             # Wrap this processing in a try block so
             # that if a message fails we may still be
             # able to process others.
-            try:
+            # try:
                         
                 message_bytes = self.fetchMessageUIDAsBytes(message_uid)
     
@@ -304,9 +320,9 @@ class Remailer:
                     
                     # print("%s" % message_obj['Subject'])
                     pass
-            except Exception as e:
-                traceback.print_tb(e.__traceback__)
-                print("*** Error processing message - skipping.")
+            # except Exception as e:
+                # traceback.print_tb(e.__traceback__)
+                # print("*** Error processing message - skipping.")
 
 if __name__ == '__main__':
     # Set up the IMAP server connection

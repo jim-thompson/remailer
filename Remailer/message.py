@@ -30,6 +30,15 @@ def maybeQuotedPrintableToBytestring(bytes_):
         return decodestring(bytes_)
     return ""
 
+def scanPartForTruncateTags(message_str):
+    
+    tag_index = message_str.find('${message-ends}')
+
+    if (tag_index) != -1:
+        message_str = message_str[0:tag_index]
+        
+    return message_str
+
 def scanPartForRemailTags(message_str):
     
     # This list will be used to return the found email addresses.
