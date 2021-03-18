@@ -6,9 +6,13 @@ Created on Jan 31, 2021
 
 import sys
 import traceback
+import logging
 
+import time
+from time import sleep
 import re
 from quopri import decodestring
+from imaplib import Time2Internaldate
 
 from creds import RemailerBotCreds
 from creds import SMTPCreds
@@ -38,6 +42,13 @@ original_folder = 'INBOX/remailer-original'
 notag_folder = 'INBOX/remailer-original-notag'
 
 global_from_addr = 'da@delligattiassociates.com'
+
+def info(str_):
+    logging.info("Remailer: " + str_)
+    print("Remailer: " + str_)
+
+def debug(str_):
+    logging.debug("Remailer: " + str_)
 
 class Remailer:
     def __init__(self, imap_connection, smtp_service):
@@ -106,7 +117,7 @@ class Remailer:
     def moveMessageUID(self, message_uid, destination_folder):
         
         message_id = self.msgId(message_uid)
-        print('Moving message %s to %s' % (message_id, destination_folder))
+        debug('Moving message %s to %s' % (message_id, destination_folder))
     
         # If our IMAP server supports the MOVE command, then we simply
         # call it directly. If not, we do it the hard way.
@@ -191,10 +202,9 @@ class Remailer:
             content_disposition = part.get_content_disposition()
             
             # Spit out some diagnostic messages.
-            # print()
-            # print("  Content-Type:", content_type)
-            # print("  Content-Charset:", content_charset)
-            # print("  Content-Disposition:", content_disposition)
+            debug("Content-Type: %s" % content_type)
+            debug("Content-Charset: %s" % content_charset)
+            debug("Content-Disposition: %s" % content_disposition)
             
             # Multipart parts are basically containers, so we don't process
             # them. But we process all others.
@@ -211,7 +221,7 @@ class Remailer:
                     # needed for this part.
                     continue
                     
-                # print("main_type = <%s>, sub_type = <%s>" % (main_type, sub_type))
+                debug("main_type = <%s>, sub_type = <%s>" % (main_type, sub_type))
                 
                 # Get the message_part_str of this part of the message.
                 # If this part of the message was encoded in (possibly)
@@ -261,7 +271,10 @@ class Remailer:
         
         message_uids = self.getAllFolderUIDs(incoming_folder)
         
-        print("%d messages in %s" %(len(message_uids), incoming_folder))
+        info("%d messages in %s" %(len(message_uids), incoming_folder))
+        
+        if len(message_uids) is not 0:
+            print('################################################################################')
         
         # Loop through all the messages in the inbox.
         for message_uid in message_uids:
@@ -275,7 +288,7 @@ class Remailer:
     
                 # Emit some messages to show progress.
                 print()
-                print("Message %s" % self.msgId(message_uid))
+                info("Message %s" % self.msgId(message_uid))
                 showMessageSubject(message_bytes)
                                 
                 message_obj = messageBytesAsObject(message_bytes)
@@ -283,6 +296,7 @@ class Remailer:
                 remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
                     
                 if len(remail_addresses_set) > 0:
+                    info("Found %d remail addresses" % len(remail_addresses_set))
                     
                     # We found at least one valid remail-to tag, so the original
                     # message should be move to the originals folder.
@@ -301,14 +315,20 @@ class Remailer:
                     to_header_str = ', '.join(remail_addresses_set)
                     message_obj.add_header("To", to_header_str)
                     
-                    print("Base message headers:")
+                    debug("Base message headers:")
                     dumpHeaders(message_obj)
+                    
+                    # Save the base message to IMAP so it can easily be resent
+                    # later.
+                    now = Time2Internaldate(time.time())
+                    message_bytes = self._smtp_service.message_bytes(message_obj)
+                    typ, data = self._imap_cxn.append(sent_folder, '', now, message_bytes)
                     
                     # message_obj now contains the base message, which we
                     # send to each of the recipients in turn.
                     
                     for recipient_address in remail_addresses_set:
-                        print("Remailing to <%s>" % recipient_address)
+                        info("Sending to <%s>" % recipient_address)
                         self._smtp_service.send_message(global_from_addr,
                                                         recipient_address,
                                                         message_obj)
@@ -316,15 +336,22 @@ class Remailer:
                 else:
                     # No addresses to remail to - move the original message to the
                     # original-notag folder
+                    debug("No remail addresses! Moving to no-tag folder.")
                     self.moveMessageUID(message_uid, notag_folder)
                     
-                    # print("%s" % message_obj['Subject'])
-                    pass
             # except Exception as e:
                 # traceback.print_tb(e.__traceback__)
                 # print("*** Error processing message - skipping.")
 
 if __name__ == '__main__':
+    # Set up logging
+    logging.basicConfig(filename = 'remailer.log',
+                        format = '%(asctime)s:%(levelname)s:%(message)s',
+                        level = logging.DEBUG)
+    
+    logging.info("-----------------------------------------------------------")
+    info("initializing...")
+    
     # Set up the IMAP server connection
     imap_creds = RemailerBotCreds()
     
@@ -351,9 +378,14 @@ if __name__ == '__main__':
     remailer.validateFolderStructure()
 
     try:
-        remailer.doThemAll()
-        
-        print("*** Done ***")
+        while True:
+            remailer.doThemAll()
+            
+            print("*** Done ***")
+            debug("*** Done ***")
+            
+            break
+            sleep(60)
          
     finally:   
         # Finish up by doing some cleanup of the IMAP connection. These
