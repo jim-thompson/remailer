@@ -4,26 +4,32 @@ Created on Jan 31, 2021
 @author: jct
 '''
 
+# System and language imports
 import sys
 import traceback
-import logging
 
+# Standard library imports
+import logging
 import time
 from time import sleep
 import re
 from quopri import decodestring
 from imaplib import Time2Internaldate
 
+# Imports from local libraries elsewhere on the PYTHONPATH
 from creds import RemailerBotCreds
 from creds import SMTPCreds
 
+# Imports from the Enroller project
 from macros import macro_substitute
 
 from imap import IMAPInterface
 from smtp import SMTPInterface
- 
-from centraltime import centraltime_str
 
+from centraltime import centraltime_str
+from macros import macro_substitute
+
+# Imports from elsewhere in this project 
 from message import dumpHeaders
 from message import mutateHeaders
 from message import scanPartForTruncateTags
@@ -31,15 +37,21 @@ from message import scanPartForRemailTags
 from message import messageBytesAsObject
 from message import showMessageSubject
 
-from macros import macro_substitute
+# Unused local imports
 # from url_mappings import infusionlink_url_mappings
-from url_redirect import get_redirect_for
+# from url_redirect import get_redirect_for
 
+# Names of the five folders used by the Remailer
+# The inbox is where messages to us are delivered
 incoming_folder = 'INBOX'
-exception_folder = 'INBOX/remailer-exception'
-sent_folder = 'INBOX/remailer-sent'
+
+# Incoming (original) messages are filtered into one
+# if these two folders. 
 original_folder = 'INBOX/remailer-original'
 notag_folder = 'INBOX/remailer-original-notag'
+
+exception_folder = 'INBOX/remailer-exception'
+sent_folder = 'INBOX/remailer-sent'
 
 global_from_addr = 'da@delligattiassociates.com'
 
@@ -268,12 +280,19 @@ class Remailer:
     MHTMLPolicy = default.clone(linesep='\r\n', max_line_length=0)
  
     def doThemAll(self):
+        first_send_this_iteration = True
         
+        # Get the UIDs of all the messages in our Inbox and compute
+        # the number of messages, which we key off of for some
+        # info messages and housekeeping.
         message_uids = self.getAllFolderUIDs(incoming_folder)
+        message_count = len(message_uids)
         
-        info("%d messages in %s" %(len(message_uids), incoming_folder))
+        # Report the number of messages in the Inbox.
+        mc_suffix = "" if message_count == 1 else "s"
+        info("%d message%s in %s" %(message_count, mc_suffix, incoming_folder))
         
-        if len(message_uids) is not 0:
+        if message_count > 0:
             print('################################################################################')
         
         # Loop through all the messages in the inbox.
@@ -282,7 +301,7 @@ class Remailer:
             # Wrap this processing in a try block so
             # that if a message fails we may still be
             # able to process others.
-            # try:
+            try:
                         
                 message_bytes = self.fetchMessageUIDAsBytes(message_uid)
     
@@ -294,9 +313,11 @@ class Remailer:
                 message_obj = messageBytesAsObject(message_bytes)
                 
                 remail_addresses_set = self.performSubstitutionOnMessageParts(message_obj)
-                    
-                if len(remail_addresses_set) > 0:
-                    info("Found %d remail addresses" % len(remail_addresses_set))
+                
+                remail_count = len(remail_addresses_set)
+                if remail_count > 0:
+                    rm_suffix = "" if remail_count == 1 else "es"
+                    info("Found %d remail address%s" % (remail_count, rm_suffix))
                     
                     # We found at least one valid remail-to tag, so the original
                     # message should be move to the originals folder.
@@ -315,8 +336,8 @@ class Remailer:
                     to_header_str = ', '.join(remail_addresses_set)
                     message_obj.add_header("To", to_header_str)
                     
-                    debug("Base message headers:")
-                    dumpHeaders(message_obj)
+                    # debug("Base message headers:")
+                    # dumpHeaders(message_obj)
                     
                     # Save the base message to IMAP so it can easily be resent
                     # later.
@@ -326,7 +347,15 @@ class Remailer:
                     
                     # message_obj now contains the base message, which we
                     # send to each of the recipients in turn.
+
+                    # We're about to send an email. If it's the first email
+                    # for this iteration, then we need to get the SMTP server
+                    # ready.                    
+                    if first_send_this_iteration:
+                        debug("Readying SMTP service.")
+                        self._smtp_service.readyService()
                     
+                    # Send the email to each of its recipients.
                     for recipient_address in remail_addresses_set:
                         info("Sending to <%s>" % recipient_address)
                         self._smtp_service.send_message(global_from_addr,
@@ -339,9 +368,22 @@ class Remailer:
                     debug("No remail addresses! Moving to no-tag folder.")
                     self.moveMessageUID(message_uid, notag_folder)
                     
-            # except Exception as e:
-                # traceback.print_tb(e.__traceback__)
-                # print("*** Error processing message - skipping.")
+            except Exception as e:
+                traceback.print_tb(e.__traceback__)
+                print("*** Error processing message - skipping.")
+                
+        # If we had some messages to process, then do some cleanup...
+        if message_count > 0:
+            
+            # Close the connection to the SMTP server. SMTP servers don't
+            # like it when connections to them remain open too long, so
+            # we close the connection. This call is harmless if the connection
+            # was never opened.
+            debug("Terminating SMTP service.")
+            self._smtp_service.terminateService()
+
+            info('*** Done ***')
+        
 
 if __name__ == '__main__':
     # Set up logging
@@ -370,8 +412,8 @@ if __name__ == '__main__':
                       "port": 587,
                       'local_hostname': 'delligattiassociates.com' }
     
-    smtp_interface = SMTPInterface()
-    smtp_interface.readyService(smtp_service, smtp_creds)
+    smtp_interface = SMTPInterface(smtp_service, smtp_creds)
+    # smtp_interface.readyService()
     
     remailer = Remailer(imap_cxn, smtp_interface)
     
@@ -380,11 +422,7 @@ if __name__ == '__main__':
     try:
         while True:
             remailer.doThemAll()
-            
-            print("*** Done ***")
-            debug("*** Done ***")
-            
-            break
+                        
             sleep(60)
          
     finally:   
