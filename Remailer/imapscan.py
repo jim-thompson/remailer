@@ -77,6 +77,8 @@ class Remailer:
         else:
             self._imap_has_move = False
     
+    def setIMAPConnction(self, imap_cxn):
+        self._imap_cxn = imap_cxn
         
     def _validateFolder(self, folder_name):
         typ, [response] = self._imap_cxn.select(folder_name)
@@ -383,8 +385,11 @@ class Remailer:
             self._smtp_service.terminateService()
 
             info('*** Done ***')
+            
+    def testIMAPConnection(self):
         
-
+        self._imap_cxn.noop()
+            
 if __name__ == '__main__':
     # Set up logging
     logging.basicConfig(filename = 'remailer.log',
@@ -421,9 +426,21 @@ if __name__ == '__main__':
 
     try:
         while True:
-            remailer.doThemAll()
-                        
+            remailer.doThemAll()  
             sleep(60)
+            
+            try:
+                remailer.testIMAPConnection()
+                
+            except:
+                print("IMAP connection failed NOOP... re-establishing connection.")
+                
+                imap_interface = IMAPInterface()
+                imap_interface.readyService(imap_service, imap_creds)
+                imap_cxn = imap_interface.getServer()
+    
+                remailer.setIMAPConnction(imap_cxn)
+
          
     finally:   
         # Finish up by doing some cleanup of the IMAP connection. These

@@ -17,3 +17,6 @@ creds.py
 
 # MagicDraw/Cameo backup files
 *.mdzip.bak
+
+# Log files
+*.log
