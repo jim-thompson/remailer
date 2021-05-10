@@ -37,6 +37,8 @@ from message import scanPartForRemailTags
 from message import messageBytesAsObject
 from message import showMessageSubject
 
+from timer import Timer
+
 # Unused local imports
 # from url_mappings import infusionlink_url_mappings
 # from url_redirect import get_redirect_for
@@ -76,6 +78,18 @@ class Remailer:
             self._imap_has_move = True
         else:
             self._imap_has_move = False
+            
+        self._uptime_timer = Timer()
+        self._imap_timer = Timer()
+        
+    def resetIMAPTimer(self):
+        self._imap_timer = Timer()
+        
+    def _uptimeStr(self):
+        return self._uptime_timer.simpleElapsedTimeString()
+    
+    def _imapupStr(self):
+        return self._imap_timer.simpleElapsedTimeString()
     
     def setIMAPConnction(self, imap_cxn):
         self._imap_cxn = imap_cxn
@@ -292,7 +306,9 @@ class Remailer:
         
         # Report the number of messages in the Inbox.
         mc_suffix = "" if message_count == 1 else "s"
-        info("%d message%s in %s" %(message_count, mc_suffix, incoming_folder))
+        info("%d message%s in %s, Uptime: %s, IMAP CX time: %s" 
+             %(message_count, mc_suffix, incoming_folder,
+               self._uptimeStr(), self._imapupStr()))
         
         if message_count > 0:
             print('################################################################################')
@@ -399,6 +415,9 @@ if __name__ == '__main__':
     logging.info("-----------------------------------------------------------")
     info("initializing...")
     
+    # Set up the timers
+    uptime_timer = Timer()
+    
     # Set up the IMAP server connection
     imap_creds = RemailerBotCreds()
     
@@ -440,6 +459,7 @@ if __name__ == '__main__':
                 imap_cxn = imap_interface.getServer()
     
                 remailer.setIMAPConnction(imap_cxn)
+                remailer.resetIMAPTimer()
 
          
     finally:   
