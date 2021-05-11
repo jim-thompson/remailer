@@ -81,6 +81,8 @@ class Remailer:
             
         self._uptime_timer = Timer()
         self._imap_timer = Timer()
+
+        self._imap_reconnect_count = 0
         
     def resetIMAPTimer(self):
         self._imap_timer = Timer()
@@ -93,6 +95,7 @@ class Remailer:
     
     def setIMAPConnction(self, imap_cxn):
         self._imap_cxn = imap_cxn
+        self._imap_reconnect_count += 1
         
     def _validateFolder(self, folder_name):
         typ, [response] = self._imap_cxn.select(folder_name)
@@ -306,9 +309,10 @@ class Remailer:
         
         # Report the number of messages in the Inbox.
         mc_suffix = "" if message_count == 1 else "s"
-        info("%d message%s in %s, Uptime: %s, IMAP CX time: %s" 
+        info("%d message%s in %s, Uptime: %s, IMAP uptime: %s, reconnect count: %d" 
              %(message_count, mc_suffix, incoming_folder,
-               self._uptimeStr(), self._imapupStr()))
+               self._uptimeStr(), self._imapupStr(),
+               self._imap_reconnect_count))
         
         if message_count > 0:
             print('################################################################################')
